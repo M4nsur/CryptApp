@@ -3,7 +3,7 @@
     <div class="container">
       <section>
         <div class="flex">
-          <div class="max-w-xs">
+          <div class="max-w-xl">
             <label for="wallet" class="block text-sm font-medium text-gray-700"
               >Тикер</label
             >
@@ -19,33 +19,22 @@
               />
             </div>
             <div
+              v-if="filterForTag()"
               class="flex bg-white shadow-md p-1 rounded-md shadow-md flex-wrap"
             >
               <span
+                @click="addToInput(el)"
+                v-for="el in filterForTag()"
+                :key="el"
                 class="inline-flex items-center px-2 m-1 rounded-md text-xs font-medium bg-gray-300 text-gray-800 cursor-pointer"
               >
-                BTC
-              </span>
-              <span
-                class="inline-flex items-center px-2 m-1 rounded-md text-xs font-medium bg-gray-300 text-gray-800 cursor-pointer"
-              >
-                DOGE
-              </span>
-              <span
-                class="inline-flex items-center px-2 m-1 rounded-md text-xs font-medium bg-gray-300 text-gray-800 cursor-pointer"
-              >
-                BCH
-              </span>
-              <span
-                class="inline-flex items-center px-2 m-1 rounded-md text-xs font-medium bg-gray-300 text-gray-800 cursor-pointer"
-              >
-                CHD
+                {{ el }}
               </span>
             </div>
-            <div class="text-sm text-red-600">Такой тикер уже добавлен</div>
+            <div v-if="checkTicker()" class="text-sm text-red-600">Такой тикер уже добавлен</div>
           </div>
         </div>
-        <button
+        <button :disabled="checkTicker()"
           @click="add"
           type="button"
           class="my-4 inline-flex items-center py-2 px-4 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-full text-white bg-gray-600 hover:bg-gray-700 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
@@ -68,14 +57,13 @@
       </section>
       <template v-if="tickers.length">
         <hr class="w-full border-t border-gray-600 my-4" />
-        <dl 
-        class="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-3">
+        <dl class="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-3">
           <div
             @click="pushToGraph(item.name)"
             v-for="(item, id) in tickers"
             :key="id"
             class="bg-white overflow-hidden shadow rounded-lg border-purple-800 border-solid cursor-pointer"
-            :class="stateGraph === item.name ? 'border-2': null"
+            :class="stateGraph === item.name ? 'border-2' : null"
           >
             <div class="px-4 py-5 sm:p-6 text-center">
               <dt class="text-sm font-medium text-gray-500 truncate">
@@ -117,7 +105,8 @@
             v-for="(elem, idx) in convertGraphToPercent()"
             :key="idx"
             :style="{ height: `${elem}%` }"
-            class="bg-purple-800 border w-10"></div>
+            class="bg-purple-800 border w-10"
+          ></div>
         </div>
         <button
           @click="stateGraph = null"
@@ -157,27 +146,50 @@ export default {
       ticker: "",
       tickers: [],
       stateGraph: null,
-      listGraph: []
+      listGraph: [],
+      arrForCoins: [],
+      tags: [],
     };
   },
+  created: async function () {
+    const res = await fetch(
+      `https://min-api.cryptocompare.com/data/all/coinlist?summary=true`
+    );
+    const data = await res.json();
+    for (let el in data.Data) {
+      this.arrForCoins.push(el);
+    }
+  },
+
   methods: {
     add() {
       const newTicker = {
         name: this.ticker,
         price: "-",
       };
+      this.tickers.push(newTicker);
       // eslint-disable-next-line
       /* eslint-disable */
-      this.tickers.push(newTicker);
       setInterval( async ()=> {
-        const res = await fetch(`https://min-api.cryptocompare.com/data/price?fsym=${newTicker.name}&tsyms=USD`);
+        const res = await fetch(`https://min-api.cryptocompare.com/data/price?fsym=${newTicker.name.toUpperCase()}&tsyms=USD`);
         const data = await res.json()
+        newTicker.price = data.USD
         this.tickers.find(el => el.name === newTicker.name).price = data.USD > 1 ? data.USD.toFixed(2): data.USD.toPrecision(2)
         if(this.stateGraph === newTicker.name) {
           this.listGraph.push(data.USD)
         }
       }, 3000);
-      this.ticker = "";
+      // this.ticker = "";
+      console.log(this.filterForTag())
+    },
+
+    checkTicker() {
+      return this.tickers.find(el => {
+        return el.name === this.ticker
+      })
+    },
+    addToInput(el) {
+      this.ticker = el
     },
     pushToGraph(name) {
       this.stateGraph = name
@@ -193,9 +205,22 @@ export default {
       const minValue = Math.min(...this.listGraph)
       return this.listGraph.map(price => 
       5 + ((price - minValue) * 95) / (maxValue - minValue))
+    },
+
+    filterForTag() {
+      if(this.ticker){
+        let tags = []
+        for(let i = 0; i < this.arrForCoins.length; i++) {
+          if(this.arrForCoins[i].toLowerCase().includes(this.ticker.toLowerCase()) && tags.length < 4) {
+            tags.push(this.arrForCoins[i])
+          }
+        }
+        return tags
+      }
+
     }
   },
 };
 </script>
 
-<style src="./app.css"></style>
+<style src="./assets/tailwind.css"></style>
