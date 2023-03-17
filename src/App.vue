@@ -31,10 +31,13 @@
                 {{ el }}
               </span>
             </div>
-            <div v-if="checkTicker()" class="text-sm text-red-600">Такой тикер уже добавлен</div>
+            <div v-if="checkTicker()" class="text-sm text-red-600">
+              Такой тикер уже добавлен
+            </div>
           </div>
         </div>
-        <button :disabled="checkTicker()"
+        <button
+          :disabled="checkTicker()"
           @click="add"
           type="button"
           class="my-4 inline-flex items-center py-2 px-4 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-full text-white bg-gray-600 hover:bg-gray-700 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
@@ -151,16 +154,10 @@ export default {
       tags: [],
     };
   },
-  created: async function () {
-    const res = await fetch(
-      `https://min-api.cryptocompare.com/data/all/coinlist?summary=true`
-    );
-    const data = await res.json();
-    for (let el in data.Data) {
-      this.arrForCoins.push(el);
-    }
+  created() {
+    this.getTagsFromApi();
+    this.getDataFromLocalS();
   },
-
   methods: {
     add() {
       const newTicker = {
@@ -168,57 +165,83 @@ export default {
         price: "-",
       };
       this.tickers.push(newTicker);
-      // eslint-disable-next-line
-      /* eslint-disable */
-      setInterval( async ()=> {
-        const res = await fetch(`https://min-api.cryptocompare.com/data/price?fsym=${newTicker.name.toUpperCase()}&tsyms=USD`);
-        const data = await res.json()
-        newTicker.price = data.USD
-        this.tickers.find(el => el.name === newTicker.name).price = data.USD > 1 ? data.USD.toFixed(2): data.USD.toPrecision(2)
-        if(this.stateGraph === newTicker.name) {
-          this.listGraph.push(data.USD)
-        }
-      }, 3000);
-      // this.ticker = "";
-      console.log(this.filterForTag())
+      localStorage.setItem("crypt-items", JSON.stringify(this.tickers));
+      this.subscribeUpd(newTicker.name);
+      this.ticker = "";
     },
 
     checkTicker() {
-      return this.tickers.find(el => {
-        return el.name === this.ticker
-      })
+      return this.tickers.find((el) => {
+        return el.name === this.ticker;
+      });
     },
     addToInput(el) {
-      this.ticker = el
+      this.ticker = el;
     },
     pushToGraph(name) {
-      this.stateGraph = name
-      this.listGraph = []
+      this.stateGraph = name;
+      this.listGraph = [];
     },
-    
     deleteTicker(el) {
       this.tickers = this.tickers.filter((item) => item.name !== el);
     },
 
     convertGraphToPercent() {
-      const maxValue = Math.max(...this.listGraph)
-      const minValue = Math.min(...this.listGraph)
-      return this.listGraph.map(price => 
-      5 + ((price - minValue) * 95) / (maxValue - minValue))
+      const maxValue = Math.max(...this.listGraph);
+      const minValue = Math.min(...this.listGraph);
+      return this.listGraph.map(
+        (price) => 5 + ((price - minValue) * 95) / (maxValue - minValue)
+      );
     },
 
     filterForTag() {
-      if(this.ticker){
-        let tags = []
-        for(let i = 0; i < this.arrForCoins.length; i++) {
-          if(this.arrForCoins[i].toLowerCase().includes(this.ticker.toLowerCase()) && tags.length < 4) {
-            tags.push(this.arrForCoins[i])
+      if (this.ticker) {
+        let tags = [];
+        for (let i = 0; i < this.arrForCoins.length; i++) {
+          if (
+            this.arrForCoins[i]
+              .toLowerCase()
+              .includes(this.ticker.toLowerCase()) &&
+            tags.length < 4
+          ) {
+            tags.push(this.arrForCoins[i]);
           }
         }
-        return tags
+        return tags;
       }
+    },
+    getDataFromLocalS() {
+      const dataFromLocal = localStorage.getItem("crypt-items");
+      if (dataFromLocal) {
+        this.tickers = JSON.parse(dataFromLocal);
+        this.tickers.forEach((el) => this.subscribeUpd(el.name));
+      }
+    },
 
-    }
+    async getTagsFromApi() {
+      const res = await fetch(
+        `https://min-api.cryptocompare.com/data/all/coinlist?summary=true`
+      );
+      const data = await res.json();
+      for (let el in data.Data) {
+        this.arrForCoins.push(el);
+      }
+    },
+    subscribeUpd(tickerName) {
+      setInterval(async () => {
+        console.log(tickerName);
+        const res = await fetch(
+          `https://min-api.cryptocompare.com/data/price?fsym=${tickerName.toLowerCase()}&tsyms=USD`
+        );
+        const data = await res.json();
+
+        this.tickers.find((el) => el.name === tickerName).price =
+          data.USD > 1 ? data.USD.toFixed(2) : data.USD.toPrecision(2);
+        if (this.stateGraph === tickerName) {
+          this.listGraph.push(data.USD);
+        }
+      }, 3000);
+    },
   },
 };
 </script>
