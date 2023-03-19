@@ -19,7 +19,7 @@
               />
             </div>
             <div
-              v-if="filterForTag()"
+              v-show="isValidate()"
               class="flex bg-white shadow-md p-1 rounded-md shadow-md flex-wrap"
             >
               <span
@@ -34,10 +34,11 @@
             <div v-if="checkTicker()" class="text-sm text-red-600">
               Такой тикер уже добавлен
             </div>
+            <button @click="check()">sss</button>
           </div>
         </div>
         <button
-          :disabled="checkTicker()"
+          :disabled="!isValidate() || checkTicker()"
           @click="add"
           type="button"
           class="my-4 inline-flex items-center py-2 px-4 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-full text-white bg-gray-600 hover:bg-gray-700 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
@@ -58,6 +59,11 @@
           Добавить
         </button>
       </section>
+      <input
+        placeholder="Фильтр"
+        type="text"
+        class="block w-sm pr-10 border-gray-300 text-gray-900 focus:outline-none focus:ring-gray-500 focus:border-gray-500 sm:text-sm rounded-md"
+      />
       <template v-if="tickers.length">
         <hr class="w-full border-t border-gray-600 my-4" />
         <dl class="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-3">
@@ -151,7 +157,9 @@ export default {
       stateGraph: null,
       listGraph: [],
       arrForCoins: [],
-      tags: [],
+      lengthForValidate: null,
+      filterList: [],
+      filter: "",
     };
   },
   created() {
@@ -161,18 +169,20 @@ export default {
   methods: {
     add() {
       const newTicker = {
-        name: this.ticker,
+        name: this.ticker.toLocaleUpperCase(),
         price: "-",
       };
       this.tickers.push(newTicker);
-      localStorage.setItem("crypt-items", JSON.stringify(this.tickers));
+      this.addToLocalStorage(this.tickers);
       this.subscribeUpd(newTicker.name);
       this.ticker = "";
     },
-
+    addToLocalStorage(tickers) {
+      localStorage.setItem("crypt-items", JSON.stringify(tickers));
+    },
     checkTicker() {
       return this.tickers.find((el) => {
-        return el.name === this.ticker;
+        return el.name === this.ticker.toLocaleUpperCase();
       });
     },
     addToInput(el) {
@@ -184,6 +194,8 @@ export default {
     },
     deleteTicker(el) {
       this.tickers = this.tickers.filter((item) => item.name !== el);
+      this.stateGraph = null;
+      this.addToLocalStorage(this.tickers);
     },
 
     convertGraphToPercent() {
@@ -194,6 +206,12 @@ export default {
       );
     },
 
+    isValidate() {
+      return this.arrForCoins.find((el) => {
+        return el.toLocaleUpperCase() === this.ticker.toLocaleUpperCase();
+      });
+
+    },
     filterForTag() {
       if (this.ticker) {
         let tags = [];
@@ -210,6 +228,7 @@ export default {
         return tags;
       }
     },
+
     getDataFromLocalS() {
       const dataFromLocal = localStorage.getItem("crypt-items");
       if (dataFromLocal) {
@@ -228,19 +247,20 @@ export default {
       }
     },
     subscribeUpd(tickerName) {
-      setInterval(async () => {
-        console.log(tickerName);
-        const res = await fetch(
-          `https://min-api.cryptocompare.com/data/price?fsym=${tickerName.toLowerCase()}&tsyms=USD`
-        );
-        const data = await res.json();
+      if (this.tickers.length) {
+        setInterval(async () => {
+          const res = await fetch(
+            `https://min-api.cryptocompare.com/data/price?fsym=${tickerName.toLowerCase()}&tsyms=USD`
+          );
+          const data = await res.json();
 
-        this.tickers.find((el) => el.name === tickerName).price =
-          data.USD > 1 ? data.USD.toFixed(2) : data.USD.toPrecision(2);
-        if (this.stateGraph === tickerName) {
-          this.listGraph.push(data.USD);
-        }
-      }, 3000);
+          this.tickers.find((el) => el.name === tickerName).price =
+            data.USD > 1 ? data.USD.toFixed(2) : data.USD.toPrecision(2);
+          if (this.stateGraph === tickerName) {
+            this.listGraph.push(data.USD);
+          }
+        }, 3000);
+      }
     },
   },
 };
