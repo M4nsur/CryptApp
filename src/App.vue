@@ -31,14 +31,14 @@
                 {{ el }}
               </span>
             </div>
-            <div v-if="checkTicker()" class="text-sm text-red-600">
+            <div v-if="isAdded()" class="text-sm text-red-600">
               Такой тикер уже добавлен
             </div>
             <button @click="check()">sss</button>
           </div>
         </div>
         <button
-          :disabled="!isValidate() || checkTicker()"
+          :disabled="!isValidate() || isAdded()"
           @click="add"
           type="button"
           class="my-4 inline-flex items-center py-2 px-4 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-full text-white bg-gray-600 hover:bg-gray-700 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
@@ -61,6 +61,7 @@
       </section>
       <input
         placeholder="Фильтр"
+        v-model="filter"
         type="text"
         class="block w-sm pr-10 border-gray-300 text-gray-900 focus:outline-none focus:ring-gray-500 focus:border-gray-500 sm:text-sm rounded-md"
       />
@@ -69,7 +70,7 @@
         <dl class="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-3">
           <div
             @click="pushToGraph(item.name)"
-            v-for="(item, id) in tickers"
+            v-for="(item, id) in filterTickers()"
             :key="id"
             class="bg-white overflow-hidden shadow rounded-lg border-purple-800 border-solid cursor-pointer"
             :class="stateGraph === item.name ? 'border-2' : null"
@@ -103,6 +104,20 @@
             </button>
           </div>
         </dl>
+        <div class="flex space-x-10 max-w-min mx-auto">
+          <button
+            @click="page = page - 1"
+            class="my-4 inline-flex items-center py-2 px-4 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-full text-white bg-gray-600 hover:bg-gray-700 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+          >
+            Назад
+          </button>
+          <button
+            @click="page = page + 1"
+            class="my-4 inline-flex items-center py-2 px-4 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-full text-white bg-gray-600 hover:bg-gray-transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+          >
+            Вперед
+          </button>
+        </div>
         <hr class="w-full border-t border-gray-600 my-4" />
       </template>
       <section v-if="stateGraph" class="relative">
@@ -157,9 +172,8 @@ export default {
       stateGraph: null,
       listGraph: [],
       arrForCoins: [],
-      lengthForValidate: null,
-      filterList: [],
       filter: "",
+      page: 1,
     };
   },
   created() {
@@ -176,11 +190,12 @@ export default {
       this.addToLocalStorage(this.tickers);
       this.subscribeUpd(newTicker.name);
       this.ticker = "";
+      this.filter = "";
     },
     addToLocalStorage(tickers) {
       localStorage.setItem("crypt-items", JSON.stringify(tickers));
     },
-    checkTicker() {
+    isAdded() {
       return this.tickers.find((el) => {
         return el.name === this.ticker.toLocaleUpperCase();
       });
@@ -210,7 +225,6 @@ export default {
       return this.arrForCoins.find((el) => {
         return el.toLocaleUpperCase() === this.ticker.toLocaleUpperCase();
       });
-
     },
     filterForTag() {
       if (this.ticker) {
@@ -229,6 +243,13 @@ export default {
       }
     },
 
+    filterTickers() {
+      const start = (this.page - 1) * 6;
+      const end = this.page * 6;
+      return this.tickers
+        .filter((ticker) => ticker.name.includes(this.filter.toUpperCase()))
+        .slice(start, end);
+    },
     getDataFromLocalS() {
       const dataFromLocal = localStorage.getItem("crypt-items");
       if (dataFromLocal) {
