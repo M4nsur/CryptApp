@@ -62,6 +62,7 @@
       <input
         placeholder="Фильтр"
         v-model="filter"
+        @input="page = 1"
         type="text"
         class="block w-sm pr-10 border-gray-300 text-gray-900 focus:outline-none focus:ring-gray-500 focus:border-gray-500 sm:text-sm rounded-md"
       />
@@ -70,7 +71,7 @@
         <dl class="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-3">
           <div
             @click="pushToGraph(item.name)"
-            v-for="(item, id) in filterTickers()"
+            v-for="(item, id) in checkPagination"
             :key="id"
             class="bg-white overflow-hidden shadow rounded-lg border-purple-800 border-solid cursor-pointer"
             :class="stateGraph === item.name ? 'border-2' : null"
@@ -106,12 +107,14 @@
         </dl>
         <div class="flex space-x-10 max-w-min mx-auto">
           <button
+            v-if="page > 1"
             @click="page = page - 1"
             class="my-4 inline-flex items-center py-2 px-4 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-full text-white bg-gray-600 hover:bg-gray-700 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
           >
             Назад
           </button>
           <button
+            v-if="hasNextPage"
             @click="page = page + 1"
             class="my-4 inline-flex items-center py-2 px-4 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-full text-white bg-gray-600 hover:bg-gray-transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
           >
@@ -126,7 +129,7 @@
         </h3>
         <div class="flex items-end border-gray-600 border-b border-l h-64">
           <div
-            v-for="(elem, idx) in convertGraphToPercent()"
+            v-for="(elem, idx) in convertedGraphToPercent"
             :key="idx"
             :style="{ height: `${elem}%` }"
             class="bg-purple-800 border w-10"
@@ -176,6 +179,36 @@ export default {
       page: 1,
     };
   },
+
+  computed: {
+    startInx() {
+      return (this.page - 1) * 6;
+    },
+    endIdx() {
+      return this.page * 6;
+    },
+    filteredTickers() {
+      return this.tickers.filter((ticker) =>
+        ticker.name.includes(this.filter.toUpperCase())
+      );
+    },
+
+    checkPagination() {
+      return this.filteredTickers.slice(this.startInx, this.endIdx);
+    },
+
+    hasNextPage() {
+      return this.filteredTickers.length > this.endIdx;
+    },
+
+    convertedGraphToPercent() {
+      const maxValue = Math.max(...this.listGraph);
+      const minValue = Math.min(...this.listGraph);
+      return this.listGraph.map(
+        (price) => 5 + ((price - minValue) * 95) / (maxValue - minValue)
+      );
+    },
+  },
   created() {
     this.getTagsFromApi();
     this.getDataFromLocalS();
@@ -213,14 +246,6 @@ export default {
       this.addToLocalStorage(this.tickers);
     },
 
-    convertGraphToPercent() {
-      const maxValue = Math.max(...this.listGraph);
-      const minValue = Math.min(...this.listGraph);
-      return this.listGraph.map(
-        (price) => 5 + ((price - minValue) * 95) / (maxValue - minValue)
-      );
-    },
-
     isValidate() {
       return this.arrForCoins.find((el) => {
         return el.toLocaleUpperCase() === this.ticker.toLocaleUpperCase();
@@ -243,13 +268,6 @@ export default {
       }
     },
 
-    filterTickers() {
-      const start = (this.page - 1) * 6;
-      const end = this.page * 6;
-      return this.tickers
-        .filter((ticker) => ticker.name.includes(this.filter.toUpperCase()))
-        .slice(start, end);
-    },
     getDataFromLocalS() {
       const dataFromLocal = localStorage.getItem("crypt-items");
       if (dataFromLocal) {
